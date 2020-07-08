@@ -55,10 +55,10 @@ defmodule NervesTime.RTC.MCP7940 do
   def terminate(_state), do: :ok
 
   @impl NervesTime.RealTimeClock
-  def set_time(state, now) do
+  def set_time(%{address: address, i2c: i2c} =  state, now) do
     with {:ok, registers} <- Date.encode(now),
          :ok <- Control.deviceStop(i2c, address),
-         :ok <- I2C.write(state.i2c, state.address, [0, registers]),
+         :ok <- I2C.write(i2c, address, [<<Registers.name(:RTCSEC)>>, registers] ),
          :ok <- Control.deviceStart(i2c, address)
     do
       state

@@ -4,14 +4,6 @@ defmodule NervesTime.RTC.MCP7940.Date do
   alias NervesTime.RealTimeClock.BCD
 
   @doc """
-  Return a list of commands for reading the configuration registers
-  """
-  def reads() do
-    # Register 0x00 to 0x06
-    [{:write_read, <<0x0>>, 7}]
-  end
-
-  @doc """
   Decode register values into a date
 
   This only returns years between 2000 and 2099.
@@ -24,9 +16,8 @@ defmodule NervesTime.RTC.MCP7940.Date do
             _wd_nc::2, _oscrun::1, _pwdfail::1,  _vbaten::1, _week_day::3,
             _d_nc::2, day_bcd::6,
             _m_nc::2, _lpyr::1, month_bcd::5,
-            year_bcd::8
-            >> <0 registers
-
+            year_bcd::8 >>
+              <- registers
     do
       {:ok,
       %NaiveDateTime{
@@ -41,6 +32,7 @@ defmodule NervesTime.RTC.MCP7940.Date do
     else
       _err ->
         {:error, :invalid}
+    end
   end
 
   @doc """
@@ -51,11 +43,11 @@ defmodule NervesTime.RTC.MCP7940.Date do
   century bit and that seems like a pointless complexity for a date that has come and gone.
   """
   @spec encode(NaiveDateTime.t()) :: {:ok, <<_::56>>} | {:error, any()}
-  def encode(%NaiveDateTime{year: year} = date_time) when year > 2000 and year < 2100 do
+  def encode(%NaiveDateTime{year: year} = date_time) when year > 2000 do
     seconds_bcd = BCD.from_integer(date_time.second)
     minutes_bcd = BCD.from_integer(date_time.minute)
     hours24_bcd = BCD.from_integer(date_time.hour)
-    week_day = BCD.from_integer(Date.day_of_week(date_time))
+    weekday_bcd = BCD.from_integer(Date.day_of_week(date_time))
     day_bcd = BCD.from_integer(date_time.day)
     month_bcd = BCD.from_integer(date_time.month)
     year_bcd = BCD.from_integer(year - 2000)
