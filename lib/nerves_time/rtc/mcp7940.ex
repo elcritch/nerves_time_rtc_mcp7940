@@ -26,10 +26,11 @@ defmodule NervesTime.RTC.MCP7940 do
   require Logger
 
   alias Circuits.I2C
-  alias NervesTime.RTC.Abracon.{Date, ID}
+  alias NervesTime.RTC.MCP7940.Registers
+  alias NervesTime.RTC.MCP7940.Date
 
   @default_bus_name "i2c-1"
-  @default_address 0x69
+  @default_address 0x6F
 
   @typedoc false
   @type state :: %{
@@ -78,15 +79,35 @@ defmodule NervesTime.RTC.MCP7940 do
 
   @spec probe(I2C.bus(), I2C.address()) :: :ok | {:error, String.t()}
   defp probe(i2c, address) do
-    case I2C.write_read(i2c, address, <<0x28>>, 7) do
-      {:ok, id_info} ->
-        check_id(ID.decode(id_info))
-
-      {:error, :i2c_nak} ->
+    with {:ok, rtset} <- I2C.write_read(i2c, address, <<Registers.name(:rtcsec)>>, 1),
+         << _st::1, secs::7>> <- rtset,
+         :ok <- I2C.write(i2c, address, <<Registers.name(:RTCSEC), 1::1, secs::7>>),
+         {:ok, rtset!} <- I2C.write_read(i2c, address, <<Registers.name(:RTCSEC)>>, 1),
+         << st!::1, _secs!::7>> <- rtset!
+    do
+      if st! == 1 do
+        check_oscrun(i2c, address, 100)
+      else
+        {:error, "RTC not enabling at #{address}, RTCSEC register: #{inspect rtset!}"}
+      end
+    else
+      _err ->
         {:error, "RTC not found at #{address}"}
     end
   end
 
-  defp check_id({:ok, %{id: :ab_rtcmc_32768khz_ibo5_s3}}), do: :ok
-  defp check_id(other), do: {:error, "Unexpected response when probing RTC: #{inspect(other)}"}
+  defp check_oscrun(_i2c, _address, 0) do
+    {:error, "RTC oscillator not running?! "}
+  end
+  defp check_oscrun(i2c, address, retries) do
+    {:ok, rtcwkday} = I2C.write_read(i2c, address, <<Registers.name(:RTCWKDAY)>>, 1)
+    << _dc::2, oscrun::1, _wkday::5 >> = rtcwkday
+
+    if oscrun == 1 do
+      :ok
+    else
+      Process.sleep(1)
+      check_oscrun(i2c, address, retries - 1)
+    end
+  end
 end
