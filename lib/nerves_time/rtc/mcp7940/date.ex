@@ -17,22 +17,31 @@ defmodule NervesTime.RTC.MCP7940.Date do
   This only returns years between 2000 and 2099.
   """
   @spec decode(<<_::56>>) :: {:ok, NaiveDateTime.t()} | {:error, any()}
-  def decode(
-        <<hundredths_bcd, seconds_bcd, minutes_bcd, hours24_bcd, day_bcd, month_bcd, year_bcd>>
-      ) do
-    {:ok,
-     %NaiveDateTime{
-       microsecond: {BCD.to_integer(hundredths_bcd) * 10000, 2},
-       second: BCD.to_integer(seconds_bcd),
-       minute: BCD.to_integer(minutes_bcd),
-       hour: BCD.to_integer(hours24_bcd),
-       day: BCD.to_integer(day_bcd),
-       month: BCD.to_integer(month_bcd),
-       year: 2000 + BCD.to_integer(year_bcd)
-     }}
-  end
+  def decode(registers) do
+    with << _st::1, seconds_bcd::7,
+            _mm_nc::1, minutes_bcd::7,
+            _hh_nc::1, _h_12_24::1, hours24_bcd::6,
+            _wd_nc::2, _oscrun::1, _pwdfail::1,  _vbaten::1, _week_day::3,
+            _d_nc::2, day_bcd::6,
+            _m_nc::2, _lpyr::1, month_bcd::5,
+            year_bcd::8
+            >> <0 registers
 
-  def decode(_other), do: {:error, :invalid}
+    do
+      {:ok,
+      %NaiveDateTime{
+        microsecond: {0, 0},
+        second: BCD.to_integer(seconds_bcd),
+        minute: BCD.to_integer(minutes_bcd),
+        hour: BCD.to_integer(hours24_bcd),
+        day: BCD.to_integer(day_bcd),
+        month: BCD.to_integer(month_bcd),
+        year: 2000 + BCD.to_integer(year_bcd)
+      }}
+    else
+      _err ->
+        {:error, :invalid}
+  end
 
   @doc """
   Encode the specified date to register values.
@@ -43,21 +52,20 @@ defmodule NervesTime.RTC.MCP7940.Date do
   """
   @spec encode(NaiveDateTime.t()) :: {:ok, <<_::56>>} | {:error, any()}
   def encode(%NaiveDateTime{year: year} = date_time) when year > 2000 and year < 2100 do
-    {microseconds, _precision} = date_time.microsecond
-    hundredths_bcd = BCD.from_integer(div(microseconds, 10000))
     seconds_bcd = BCD.from_integer(date_time.second)
     minutes_bcd = BCD.from_integer(date_time.minute)
     hours24_bcd = BCD.from_integer(date_time.hour)
+    week_day = BCD.from_integer(Date.day_of_week(date_time))
     day_bcd = BCD.from_integer(date_time.day)
     month_bcd = BCD.from_integer(date_time.month)
     year_bcd = BCD.from_integer(year - 2000)
 
     {:ok,
      <<
-       hundredths_bcd,
        seconds_bcd,
        minutes_bcd,
        hours24_bcd,
+       weekday_bcd,
        day_bcd,
        month_bcd,
        year_bcd
