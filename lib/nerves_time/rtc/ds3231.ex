@@ -1,23 +1,24 @@
-defmodule NervesTime.RTC.mcp7940 do
+defmodule NervesTime.RTC.MCP7940 do
   @moduledoc """
-  mcp7940 RTC implementation for NervesTime
+  Abracon RTC implementation for NervesTime
 
   To configure NervesTime to use this module, update the `:nerves_time` application
   environment like this:
 
   ```elixir
-  config :nerves_time, rtc: NervesTime.RTC.mcp7940
+  config :nerves_time, rtc: NervesTime.RTC.Abracon
   ```
 
   If not using `"i2c-1"` or the default I2C bus address, specify them like this:
 
   ```elixir
-  config :nerves_time, rtc: {NervesTime.RTC.mcp7940, [bus_name: "i2c-2", address: 0x69]}
+  config :nerves_time, rtc: {NervesTime.RTC.Abracon, [bus_name: "i2c-2", address: 0x69]}
   ```
 
   Check the logs for error messages if the RTC doesn't appear to work.
 
-  See https://datasheets.maximintegrated.com/en/ds/mcp7940.pdf for implementation details.
+  See https://abracon.com/Support/AppsManuals/Precisiontiming/Application%20Manual%20AB-RTCMC-32.768kHz-IBO5-S3.pdf
+  for implementation details.
   """
 
   @behaviour NervesTime.RealTimeClock
@@ -25,13 +26,10 @@ defmodule NervesTime.RTC.mcp7940 do
   require Logger
 
   alias Circuits.I2C
-  alias NervesTime.RTC.mcp7940.{Alarm, Control, Date, Status, Temperature}
+  alias NervesTime.RTC.Abracon.{Date, ID}
 
   @default_bus_name "i2c-1"
-  @default_address 0x68
-
-  @typedoc "This type represents the many registers whose value is a single bit."
-  @type flag :: 0 | 1
+  @default_address 0x69
 
   @typedoc false
   @type state :: %{
@@ -46,14 +44,8 @@ defmodule NervesTime.RTC.mcp7940 do
     address = Keyword.get(args, :address, @default_address)
 
     with {:ok, i2c} <- I2C.open(bus_name),
-         true <- rtc_available?(i2c, address) do
+         :ok <- probe(i2c, address) do
       {:ok, %{i2c: i2c, bus_name: bus_name, address: address}}
-    else
-      {:error, _} = error ->
-        error
-
-      error ->
-        {:error, error}
     end
   end
 
@@ -62,13 +54,12 @@ defmodule NervesTime.RTC.mcp7940 do
 
   @impl NervesTime.RealTimeClock
   def set_time(state, now) do
-    with {:ok, status_data} <- get_status(state.i2c, state.address),
-         :ok <- set(state.i2c, state.address, 0x0, now, Date),
-         :ok <- set_status(state.i2c, state.address, %{status_data | osc_stop_flag: 0}) do
+    with {:ok, registers} <- Date.encode(now),
+         :ok <- I2C.write(state.i2c, state.address, [0, registers]) do
       state
     else
       error ->
-        _ = Logger.error("Error setting mcp7940 RTC to #{inspect(now)}: #{inspect(error)}")
+        _ = Logger.error("Error setting Abracon RTC to #{inspect(now)}: #{inspect(error)}")
         state
     end
   end
@@ -80,57 +71,22 @@ defmodule NervesTime.RTC.mcp7940 do
       {:ok, time, state}
     else
       any_error ->
-        _ = Logger.error("mcp7940 RTC not set or has an error: #{inspect(any_error)}")
+        _ = Logger.error("Abracon RTC not set or has an error: #{inspect(any_error)}")
         {:unset, state}
     end
   end
 
-  @doc "Reads the status register."
-  def get_status(i2c, address), do: get(i2c, address, 0x0F, 1, Status)
+  @spec probe(I2C.bus(), I2C.address()) :: :ok | {:error, String.t()}
+  defp probe(i2c, address) do
+    case I2C.write_read(i2c, address, <<0x28>>, 7) do
+      {:ok, id_info} ->
+        check_id(ID.decode(id_info))
 
-  @doc "Writes the status register."
-  def set_status(i2c, address, status), do: set(i2c, address, 0x0F, status, Status)
-
-  @doc "Reads the control register."
-  def get_control(i2c, address), do: get(i2c, address, 0x0E, 1, Control)
-
-  @doc "Writes the control register."
-  def set_control(i2c, address, control), do: set(i2c, address, 0x0E, control, Control)
-  @doc "Reads an alarm register."
-  def get_alarm(i2c, address, 1 = _alarm_num), do: get(i2c, address, 0x07, 4, Alarm)
-  def get_alarm(i2c, address, 2 = _alarm_num), do: get(i2c, address, 0x0B, 3, Alarm)
-
-  @doc "Writes an alarm register."
-  def set_alarm(i2c, address, %{seconds: _} = a1), do: set(i2c, address, 0x07, a1, Alarm)
-  def set_alarm(i2c, address, a2), do: set(i2c, address, 0x0B, a2, Alarm)
-
-  @doc "Reads the temperature register."
-  def get_temperature(i2c, address), do: get(i2c, address, 0x11, 2, Temperature)
-
-  defp set(i2c, address, offset, data, module) do
-    with {:ok, bin} <- module.encode(data),
-         :ok <- I2C.write(i2c, address, [offset, bin]) do
-      :ok
-    else
-      {:error, _} = e -> e
-      e -> {:error, e}
+      {:error, :i2c_nak} ->
+        {:error, "RTC not found at #{address}"}
     end
   end
 
-  defp get(i2c, address, offset, length, module) do
-    with {:ok, bin} <- I2C.write_read(i2c, address, <<offset>>, length),
-         {:ok, data} <- module.decode(bin) do
-      {:ok, data}
-    else
-      {:error, _} = e -> e
-      e -> {:error, e}
-    end
-  end
-
-  defp rtc_available?(i2c, address) do
-    case I2C.write_read(i2c, address, <<0>>, 1) do
-      {:ok, <<_::8>>} -> true
-      {:error, _} -> false
-    end
-  end
+  defp check_id({:ok, %{id: :ab_rtcmc_32768khz_ibo5_s3}}), do: :ok
+  defp check_id(other), do: {:error, "Unexpected response when probing RTC: #{inspect(other)}"}
 end

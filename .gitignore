@@ -21,3 +21,4 @@ erl_crash.dump
 
 # Ignore package tarball (built via "mix hex.build").
 nerves_time_rtc_mcp7940-*.tar
+MCP7940-master/

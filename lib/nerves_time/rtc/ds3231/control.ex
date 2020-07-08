@@ -1,4 +1,4 @@
-defmodule NervesTime.RTC.mcp7940.Control do
+defmodule NervesTime.RTC.MCP7940.Control do
   @moduledoc false
 
   @typedoc "The mcp7940 control registers are a 1-byte binary."
