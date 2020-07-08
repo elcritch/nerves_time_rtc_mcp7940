@@ -1,6 +1,6 @@
-defmodule NervesTime.RTC.mcp7940.AlarmTest do
+defmodule NervesTime.RTC.mcp7940().AlarmTest do
   use ExUnit.Case
-  alias NervesTime.RTC.mcp7940.Alarm
+  alias NervesTime.RTC.mcp7940().Alarm
 
   describe "decode/1 and encode/1" do
     test "alarm_1" do

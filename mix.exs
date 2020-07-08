@@ -1,8 +1,8 @@
-defmodule NervesTime.RTC.mcp7940.MixProject do
+defmodule NervesTime.RTC.MCP7940.MixProject do
   use Mix.Project
 
   @version "0.1.1"
-  @source_url "https://github.com/nerves-time/nerves_time_rtc_mcp7940"
+  @source_url "https://github.com/elcritch/nerves_time_rtc_mcp7940"
 
   def project do
     [
@@ -28,7 +28,7 @@ defmodule NervesTime.RTC.mcp7940.MixProject do
   end
 
   defp description do
-    "NervesTime.RTC implementation for Maxim Integrated mcp7940 Real-Time Clock"
+    "NervesTime.RTC implementation for Maxim Integrated MCP7940 Real-Time Clock"
   end
 
   defp package do

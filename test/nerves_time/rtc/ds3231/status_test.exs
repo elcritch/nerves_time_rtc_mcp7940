@@ -1,6 +1,6 @@
-defmodule NervesTime.RTC.mcp7940.StatusTest do
+defmodule NervesTime.RTC.mcp7940().StatusTest do
   use ExUnit.Case
-  alias NervesTime.RTC.mcp7940.Status
+  alias NervesTime.RTC.mcp7940().Status
 
   test "decode/1 and encode/1" do
     data = %{

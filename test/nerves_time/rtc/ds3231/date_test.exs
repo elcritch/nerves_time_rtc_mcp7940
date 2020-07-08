@@ -1,6 +1,6 @@
-defmodule NervesTime.RTC.mcp7940.DateTest do
+defmodule NervesTime.RTC.mcp7940().DateTest do
   use ExUnit.Case
-  alias NervesTime.RTC.mcp7940.Date
+  alias NervesTime.RTC.mcp7940().Date
 
   test "decodes date" do
     assert Date.decode(<<2, 3, 4, 1, 5, 6, 7>>) ==
