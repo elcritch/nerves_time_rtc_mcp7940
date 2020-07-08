@@ -40,8 +40,8 @@ defmodule NervesTime.RTC.MCP7940.Control do
   end
   defp check_oscrun(i2c, address, retries, st_bit) do
     {:ok, rtcwkday} = I2C.write_read(i2c, address, <<Registers.name(:RTCWKDAY)>>, 1)
-    << _dc::2, oscrun::1, wkday::5 >> = rtcwkday
-    Logger.warn("OSCRUN: #{inspect oscrun} (0b#{wkday |> Integer.to_string(2)})")
+    << _dc::2, oscrun::1, _wkday::5 >> = rtcwkday
+    # Logger.warn("OSCRUN: #{inspect oscrun} (0b#{wkday |> Integer.to_string(2)})")
 
     if oscrun == st_bit do
       :ok
