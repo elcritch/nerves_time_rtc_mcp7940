@@ -1,25 +1,15 @@
-defmodule NervesTime.RTC.MCP7940.Date do
-  @moduledoc false
+defmodule NervesTime.RTC.MCP7940.BcdDate do
 
   alias NervesTime.RealTimeClock.BCD
 
-  @doc """
-  Decode register values into a date
-
-  This only returns years between 2000 and 2099.
-  """
-  @spec decode(<<_::56>>) :: {:ok, NaiveDateTime.t()} | {:error, any()}
   def decode(registers) do
-    with << _st::1, seconds_bcd::7,
-            _mm_nc::1, minutes_bcd::7,
-            _hh_nc::1, _h_12_24::1, hours24_bcd::6,
-            _wd_nc::2, _oscrun::1, _pwdfail::1,  _vbaten::1, _week_day::3,
-            _d_nc::2, day_bcd::6,
-            _m_nc::2, _lpyr::1, month_bcd::5,
-            year_bcd::8 >>
-              <- registers
-    do
-      {:ok,
+    try do
+      <<_st::1, seconds_bcd::7, _mm_nc::1, minutes_bcd::7, _hh_nc::1, _h_12_24::1,
+           hours24_bcd::6, _wd_nc::2, _oscrun::1, _pwdfail::1, _vbaten::1, _week_day::3, _d_nc::2,
+           day_bcd::6, _m_nc::2, _lpyr::1, month_bcd::5,
+           year_bcd::8>> = registers
+
+      {:ok, dt} =
         NaiveDateTime.new(
           2000 + BCD.to_integer(year_bcd),
           BCD.to_integer(month_bcd),
@@ -28,10 +18,12 @@ defmodule NervesTime.RTC.MCP7940.Date do
           BCD.to_integer(minutes_bcd),
           BCD.to_integer(seconds_bcd),
           {0, 0}
-        )}
-    else
-      _err ->
-        {:error, :invalid}
+        )
+
+      {:ok, dt}
+    rescue
+      err ->
+        {:error, {:invalid_date, err}}
     end
   end
 

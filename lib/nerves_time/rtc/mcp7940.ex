@@ -27,7 +27,7 @@ defmodule NervesTime.RTC.MCP7940 do
 
   alias Circuits.I2C
   alias NervesTime.RTC.MCP7940.Registers
-  alias NervesTime.RTC.MCP7940.Date
+  alias NervesTime.RTC.MCP7940.BcdDate
   alias NervesTime.RTC.MCP7940.Control
 
   @default_bus_name "i2c-1"
@@ -55,38 +55,31 @@ defmodule NervesTime.RTC.MCP7940 do
   def terminate(_state), do: :ok
 
   @impl NervesTime.RealTimeClock
-  def set_time(%{address: address, i2c: i2c} =  state, now) do
-    with {:ok, registers} <- Date.encode(now),
+  def set_time(%{address: address, i2c: i2c} = state, now) do
+    with {:ok, registers} <- BcdDate.encode(now),
          :ok <- Control.deviceStop(i2c, address),
-         :ok <- I2C.write(i2c, address, [<<Registers.name(:RTCSEC)>>, registers] ),
-         :ok <- Control.deviceStart(i2c, address)
-    do
+         :ok <- I2C.write(i2c, address, [<<Registers.name(:RTCSEC)>>, registers]),
+         :ok <- Control.deviceStart(i2c, address) do
       state
     else
       error ->
-        _ = Logger.error("Error setting Abracon RTC to #{inspect(now)}: #{inspect(error)}")
+        _ = Logger.error("Error setting MCP7940 RTC to #{inspect(now)}: #{inspect(error)}")
         state
     end
   end
 
   @impl NervesTime.RealTimeClock
   def get_time(state) do
-    try do
-      with {:ok, registers} <- I2C.write_read(state.i2c, state.address, <<Registers.name(:RTCSEC)>>, 7),
-          {:ok, time} <- Date.decode(registers) do
-        {:ok, time, state}
-      else
-        any_error ->
-          _ = Logger.error("MCP7940 RTC not set or has an error: #{inspect(any_error)}")
-          {:unset, state}
-      end
-    rescue
-      _err ->
-        {:unset, state}
-    catch
-      _err ->
+    with {:ok, registers} <-
+            I2C.write_read(state.i2c, state.address, <<Registers.name(:RTCSEC)>>, 7),
+          {:ok, time} <- BcdDate.decode(registers),
+          %NaiveDateTime{} <- time
+    do
+      {:ok, time, state}
+    else
+      any_error ->
+        Logger.error("MCP7940 RTC not set or has an error: #{inspect(any_error)}")
         {:unset, state}
     end
   end
-
 end
