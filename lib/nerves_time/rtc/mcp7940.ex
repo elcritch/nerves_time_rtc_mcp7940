@@ -71,12 +71,17 @@ defmodule NervesTime.RTC.MCP7940 do
 
   @impl NervesTime.RealTimeClock
   def get_time(state) do
-    with {:ok, registers} <- I2C.write_read(state.i2c, state.address, <<Registers.name(:RTCSEC)>>, 7),
-         {:ok, time} <- Date.decode(registers) do
-      {:ok, time, state}
-    else
-      any_error ->
-        _ = Logger.error("Abracon RTC not set or has an error: #{inspect(any_error)}")
+    try do
+      with {:ok, registers} <- I2C.write_read(state.i2c, state.address, <<Registers.name(:RTCSEC)>>, 7),
+          {:ok, time} <- Date.decode(registers) do
+        {:ok, time, state}
+      else
+        any_error ->
+          _ = Logger.error("MCP7940 RTC not set or has an error: #{inspect(any_error)}")
+          {:unset, state}
+      end
+    catch
+      _err ->
         {:unset, state}
     end
   end
