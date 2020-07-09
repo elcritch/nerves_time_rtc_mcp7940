@@ -20,15 +20,15 @@ defmodule NervesTime.RTC.MCP7940.Date do
               <- registers
     do
       {:ok,
-      %NaiveDateTime{
-        microsecond: {0, 0},
-        second: BCD.to_integer(seconds_bcd),
-        minute: BCD.to_integer(minutes_bcd),
-        hour: BCD.to_integer(hours24_bcd),
-        day: BCD.to_integer(day_bcd),
-        month: BCD.to_integer(month_bcd),
-        year: 2000 + BCD.to_integer(year_bcd)
-      }}
+      %NaiveDateTime.new(
+        2000 + BCD.to_integer(year_bcd),
+        BCD.to_integer(month_bcd),
+        BCD.to_integer(hours24_bcd),
+        BCD.to_integer(day_bcd),
+        BCD.to_integer(minutes_bcd),
+        BCD.to_integer(seconds_bcd),
+        {0, 0}
+      )}
     else
       _err ->
         {:error, :invalid}
