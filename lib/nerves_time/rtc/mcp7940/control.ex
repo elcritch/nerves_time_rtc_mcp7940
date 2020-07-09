@@ -6,9 +6,27 @@ defmodule NervesTime.RTC.MCP7940.Control do
   alias Circuits.I2C
   alias NervesTime.RTC.MCP7940.Registers
 
+  # @vbat_en 1 <<< 3
+  @vbat_en 1
+
   @spec deviceStart(I2C.bus(), I2C.address()) :: :ok | {:error, String.t()}
   def deviceStart(i2c, address) do
     deviceHandle(i2c, address, 1)
+    # writeRegisterBit(MCP7940_RTCWKDAY, MCP7940_VBATEN, state);
+
+    # :ok <- I2C.write(i2c, address, [<<Registers.name(:RTCWKDAY)>>, <<st_bit::1, secs::7>>]),
+
+    with {:ok, wkday} <- I2C.write_read(i2c, address, <<Registers.name(:RTCWKDAY)>>, 1),
+         << wd_nc::2, oscrun::1, pwdfail::1,  _v_en::1, week_day::3 >>  <- wkday,
+         wkday! <- << wd_nc::2, oscrun::1, pwdfail::1,  @vbat_en::1, week_day::3 >>,
+         :ok <- I2C.write(i2c, address, [<<Registers.name(:RTCWKDAY)>>, wkday!]),
+         {:ok, ^wkday!} <- I2C.write_read(i2c, address, <<Registers.name(:RTCWKDAY)>>, 1)
+    do
+      :ok
+    else
+      _err ->
+        {:error, "RTC not found at #{address}"}
+    end
   end
 
   @spec deviceStop(I2C.bus(), I2C.address()) :: :ok | {:error, String.t()}
