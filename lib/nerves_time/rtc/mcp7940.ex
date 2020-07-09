@@ -36,6 +36,7 @@ defmodule NervesTime.RTC.MCP7940 do
   @typedoc false
   @type state :: %{
           i2c: I2C.bus(),
+          retries: I2C.bus(),
           bus_name: String.t(),
           address: I2C.address()
         }
@@ -44,10 +45,25 @@ defmodule NervesTime.RTC.MCP7940 do
   def init(args) do
     bus_name = Keyword.get(args, :bus_name, @default_bus_name)
     address = Keyword.get(args, :address, @default_address)
+    retries = Keyword.get(args, :retries, 100)
+    open_rtc(bus_name, address, retries)
+  end
 
+  def open_rtc(bus_name, address, 0) do
     with {:ok, i2c} <- I2C.open(bus_name),
          :ok <- Control.deviceStart(i2c, address) do
       {:ok, %{i2c: i2c, bus_name: bus_name, address: address}}
+    end
+  end
+  def open_rtc(bus_name, address, retries) do
+    with {:ok, i2c} <- I2C.open(bus_name),
+         :ok <- Control.deviceStart(i2c, address) do
+      {:ok, %{i2c: i2c, bus_name: bus_name, address: address}}
+    else
+      err ->
+        _ = Logger.error("Error initializing MCP7940 RTC #{inspect [bus_name: bus_name, address: address]} => #{inspect err}")
+        Process.sleep(200)
+        open_rtc(bus_name, address, retries - 1)
     end
   end
 
