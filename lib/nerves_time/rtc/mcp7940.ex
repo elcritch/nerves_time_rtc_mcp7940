@@ -80,6 +80,9 @@ defmodule NervesTime.RTC.MCP7940 do
           _ = Logger.error("MCP7940 RTC not set or has an error: #{inspect(any_error)}")
           {:unset, state}
       end
+    rescue
+      _err ->
+        {:unset, state}
     catch
       _err ->
         {:unset, state}
