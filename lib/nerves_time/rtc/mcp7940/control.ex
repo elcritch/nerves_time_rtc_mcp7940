@@ -30,7 +30,7 @@ defmodule NervesTime.RTC.MCP7940.Control do
 
   @spec deviceStop(I2C.bus(), I2C.address()) :: :ok | {:error, String.t()}
   def deviceStop(i2c, address) do
-    deviceHandle(i2c, address, 1)
+    deviceHandle(i2c, address, 0)
   end
 
   @spec deviceHandle(I2C.bus(), I2C.address(), 0 | 1) :: :ok | {:error, String.t()}
@@ -40,7 +40,7 @@ defmodule NervesTime.RTC.MCP7940.Control do
          :ok <- I2C.write(i2c, address, [<<Registers.name(:RTCSEC)>>, <<st_bit::1, secs::7>>]),
          {:ok, rtset!} <- I2C.write_read(i2c, address, <<Registers.name(:RTCSEC)>>, 1),
          <<st!::1, _secs!::7>> <- rtset! do
-      if st! == 1 do
+      if st! == st_bit do
         check_oscrun(i2c, address, 100, st_bit)
       else
         {:error, "RTC not enabling at #{address}, RTCSEC register: #{inspect(rtset!)}"}

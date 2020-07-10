@@ -4,17 +4,20 @@ defmodule NervesTime.RTC.MCP7940.BcdDate do
 
   def decode(registers) do
     try do
-      <<_st::1, seconds_bcd::7, _mm_nc::1, minutes_bcd::7, _hh_nc::1, _h_12_24::1,
-           hours24_bcd::6, _wd_nc::2, _oscrun::1, _pwdfail::1, _vbaten::1, _week_day::3, _d_nc::2,
-           day_bcd::6, _m_nc::2, _lpyr::1, month_bcd::5,
-           year_bcd::8>> = registers
+      <<_st::1, seconds_bcd::7, # seconds
+        _mm_nc::1, minutes_bcd::7,  # minutes
+        _hh_nc::1, _h_12_24::1, hours24_bcd::6, # hours
+        _wd_nc::2, _oscrun::1, _pwdfail::1, _vbaten::1, _week_day::3, # week day
+        _d_nc::2, day_bcd::6, # day
+        _m_nc::2, _lpyr::1, month_bcd::5, # month
+        year_bcd::8>> = registers # year
 
       {:ok, dt} =
         NaiveDateTime.new(
           2000 + BCD.to_integer(year_bcd),
           BCD.to_integer(month_bcd),
-          BCD.to_integer(hours24_bcd),
           BCD.to_integer(day_bcd),
+          BCD.to_integer(hours24_bcd),
           BCD.to_integer(minutes_bcd),
           BCD.to_integer(seconds_bcd),
           {0, 0}
