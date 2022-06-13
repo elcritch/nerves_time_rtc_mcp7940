@@ -1,7 +1,7 @@
 defmodule NervesTime.RTC.MCP7940.MixProject do
   use Mix.Project
 
-  @version "0.1.2"
+  @version "0.1.3"
   @source_url "https://github.com/elcritch/nerves_time_rtc_mcp7940"
 
   def project do

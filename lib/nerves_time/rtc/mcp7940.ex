@@ -1,23 +1,23 @@
 defmodule NervesTime.RTC.MCP7940 do
   @moduledoc """
-  Abracon RTC implementation for NervesTime
+  Microchip MCP7940N RTC implementation for NervesTime
 
   To configure NervesTime to use this module, update the `:nerves_time` application
   environment like this:
 
   ```elixir
-  config :nerves_time, rtc: NervesTime.RTC.Abracon
+  config :nerves_time, rtc: NervesTime.RTC.MCP7940
   ```
 
   If not using `"i2c-1"` or the default I2C bus address, specify them like this:
 
   ```elixir
-  config :nerves_time, rtc: {NervesTime.RTC.Abracon, [bus_name: "i2c-2", address: 0x69]}
+  config :nerves_time, rtc: {NervesTime.RTC.MCP7940N, [bus_name: "i2c-2", address: 0x69]}
   ```
 
   Check the logs for error messages if the RTC doesn't appear to work.
 
-  See https://abracon.com/Support/AppsManuals/Precisiontiming/Application%20Manual%20AB-RTCMC-32.768kHz-IBO5-S3.pdf
+  See https://ww1.microchip.com/downloads/aemDocuments/documents/MPD/ProductDocuments/DataSheets/MCP7940N-Battery-Backed-I2C-RTCC-with-SRAM-20005010J.pdf
   for implementation details.
   """
 
@@ -58,10 +58,11 @@ defmodule NervesTime.RTC.MCP7940 do
   def open_rtc(bus_name, address, retries) do
     with {:ok, i2c} <- I2C.open(bus_name),
          :ok <- Control.deviceStart(i2c, address) do
+      Logger.info("initializing MCP7940 RTC #{inspect [bus_name: bus_name, address: address]} => #{inspect i2c}")
       {:ok, %{i2c: i2c, bus_name: bus_name, address: address}}
     else
       err ->
-        _ = Logger.error("Error initializing MCP7940 RTC #{inspect [bus_name: bus_name, address: address]} => #{inspect err}")
+        Logger.error("Error initializing MCP7940 RTC #{inspect [bus_name: bus_name, address: address]} => #{inspect err}")
         Process.sleep(200)
         open_rtc(bus_name, address, retries - 1)
     end
